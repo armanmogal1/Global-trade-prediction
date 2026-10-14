@@ -1,0 +1,10 @@
+trade_env/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+dataset/
+check_model.py
+.venv/
+__pycache__/
+dataset/

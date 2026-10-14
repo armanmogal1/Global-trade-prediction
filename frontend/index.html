@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Trade Prediction</title>
+<style>
+  :root {
+    --bg: #070a12;
+    --panel: #0e1424;
+    --panel-soft: #0a0f1c;
+    --panel-border: #1e2740;
+    --text: #e8ecf5;
+    --text-dim: #8b93a8;
+    --teal: #2dd4bf;
+    --purple: #7c6cf0;
+    --pink: #f0577c;
+    --blue: #4f7dfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14.8px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ================= TOP BAR ================= */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--panel-border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 19.3px; font-weight: 800; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    display: flex; align-items: center; justify-content: center; font-size: 17.3px;
+  }
+  .brand span { color: var(--teal); }
+
+  .navtabs { display: flex; gap: 6px; background: var(--panel-soft); padding: 4px; border-radius: 10px; }
+  .navtabs button {
+    display: flex; align-items: center; gap: 7px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 14.3px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .navtabs button.active { background: linear-gradient(90deg, var(--blue), var(--purple)); color: #fff; }
+
+  .api-status { display: flex; align-items: center; gap: 9px; }
+  .dot-status { width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+  .dot-status.live { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+  .dot-status.offline { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+  .api-lines { line-height: 1.25; }
+  .api-line1 { font-size: 13.8px; font-weight: 700; }
+  .api-line2 { font-size: 12.3px; color: var(--text-dim); }
+  .api-line2.live { color: var(--teal); }
+  .api-line2.offline { color: var(--pink); }
+
+  /* ================= PREDICTION VIEW (fixed, no scroll) ================= */
+  #predictionView {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+    padding: 16px 24px;
+    min-height: 0;
+  }
+
+  /* ---------- Left: input panel ---------- */
+  .input-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .input-panel h2 { font-size: 17.3px; font-weight: 700; margin-bottom: 3px; }
+  .input-panel .sub { font-size: 13.3px; color: var(--text-dim); margin-bottom: 16px; display: block; }
+
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 13.3px; color: var(--text-dim); margin-bottom: 6px; }
+  .field select, .field input {
+    width: 100%;
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 9px 11px;
+    font-size: 14.3px;
+    outline: none;
+  }
+  .field select:focus, .field input:focus { border-color: var(--purple); }
+
+  .stepper-row { display: flex; align-items: center; gap: 7px; }
+  .stepper-row input[type="number"] { text-align: center; -moz-appearance: textfield; }
+  .stepper-row input[type="number"]::-webkit-outer-spin-button,
+  .stepper-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .step-btn {
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 7px;
+    font-size: 17.3px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-btn:hover { border-color: var(--purple); }
+
+  #predictBtn {
+    width: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    color: #fff;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 15.3px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #predictBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+  #predictBtn:hover:not(:disabled) { filter: brightness(1.08); }
+
+  .footnote {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 11.8px;
+    margin-top: 10px;
+  }
+
+  .error-box {
+    display: none;
+    background: rgba(240,87,124,0.1);
+    border: 1px solid rgba(240,87,124,0.4);
+    color: var(--pink);
+    padding: 9px 12px;
+    border-radius: 9px;
+    font-size: 13.3px;
+    margin-top: 10px;
+  }
+
+  /* ---------- Right column ---------- */
+  .right-col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex-shrink: 0; }
+  .stat-card {
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .stat-card.value { background: rgba(45,212,191,0.06); border: 1px solid rgba(45,212,191,0.3); }
+  .stat-card.category { background: rgba(124,108,240,0.06); border: 1px solid rgba(124,108,240,0.3); }
+  .stat-card-title { font-size: 14.8px; font-weight: 700; margin-bottom: 6px; }
+  .stat-card-value { font-size: 25.3px; font-weight: 800; }
+  .stat-card.value .stat-card-value { color: var(--teal); }
+  .stat-card.category .stat-card-value { color: var(--purple); font-size: 20.3px; }
+  .stat-card-sub { font-size: 12.8px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+  .stat-icon {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17.3px; flex-shrink: 0;
+  }
+  .stat-card.value .stat-icon { background: rgba(45,212,191,0.15); color: var(--teal); }
+  .stat-card.category .stat-icon { background: rgba(124,108,240,0.15); color: var(--purple); }
+
+  /* ---------- SHAP card ---------- */
+  .shap-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .shap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+  .shap-head h2 { font-size: 16.3px; font-weight: 700; }
+
+  .shap-toggle { display: flex; gap: 3px; background: var(--panel-soft); padding: 3px; border-radius: 8px; }
+  .shap-toggle button {
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 6px 13px; border-radius: 6px; font-size: 12.8px; font-weight: 600; cursor: pointer;
+  }
+  .shap-toggle button.active { background: var(--purple); color: #fff; }
+
+  .shap-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  /* ---- Left column: bars (natural height) + quick summary filling the rest ---- */
+  .shap-left { display: flex; flex-direction: column; min-height: 0; gap: 14px; }
+
+  .shap-visual { display: flex; flex-direction: column; flex-shrink: 0; }
+  .shap-rows-wrap { display: flex; flex-direction: column; }
+
+  .shap-row {
+    display: grid;
+    grid-template-columns: 132px 1fr 64px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 13.3px;
+  }
+  .shap-row:last-child { margin-bottom: 0; }
+  .shap-row .feat-name { color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .shap-bar-track {
+    position: relative;
+    height: 20px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    overflow: visible;
+  }
+  .shap-center-line { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--panel-border); }
+  .shap-bar {
+    position: absolute;
+    top: 0; height: 20px;
+    border-radius: 6px;
+  }
+  .shap-bar.pos-bar { box-shadow: 0 0 10px rgba(45,212,191,0.35); }
+  .shap-bar.neg-bar { box-shadow: 0 0 10px rgba(240,87,124,0.35); }
+  .shap-row .val {
+    text-align: right;
+    font-weight: 700;
+    font-size: 12.8px;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+  .val.pos { color: var(--teal); background: rgba(45,212,191,0.1); }
+  .val.neg { color: var(--pink); background: rgba(240,87,124,0.1); }
+
+  .shap-legend-row {
+    display: flex; justify-content: space-between;
+    font-size: 12.3px; color: var(--text-dim); margin-top: 12px; padding-top: 8px;
+    border-top: 1px solid var(--panel-border); flex-shrink: 0;
+  }
+  .shap-legend-row span.neg { color: var(--pink); }
+  .shap-legend-row span.pos { color: var(--teal); }
+
+  /* Card under the SHAP bars: category probabilities + model performance */
+  .side-card {
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .side-title { font-size: 13.8px; font-weight: 700; margin-bottom: 10px; }
+  .prob-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+    font-size: 12.8px;
+  }
+  .prob-name { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prob-track { height: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--blue), var(--purple)); }
+  .prob-val { text-align: right; font-weight: 700; color: var(--text); }
+  .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .metric {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .metric b { display: block; font-size: 19px; color: var(--teal); margin-bottom: 3px; }
+  .metric span { font-size: 11.5px; color: var(--text-dim); }
+
+  /* Quick Summary, now inline inside the left column, fills remaining space */
+  .summary-card-inline {
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .summary-icon {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(45,212,191,0.15); color: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18.3px; flex-shrink: 0;
+  }
+  .summary-title { font-size: 14.8px; font-weight: 700; margin-bottom: 7px; }
+  .summary-text { font-size: 14.8px; color: var(--text-dim); line-height: 1.7; }
+  .summary-text b { color: var(--text); }
+
+  /* ---- Right column: mean card (fixed) + single explanation list (fills full height) ---- */
+  .shap-right {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .shap-mean-card {
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    flex-shrink: 0;
+  }
+  .shap-mean-card h4 { font-size: 14.8px; font-weight: 700; margin-bottom: 7px; }
+  .shap-mean-card p { font-size: 13.3px; color: var(--text-dim); line-height: 1.6; }
+  .shap-mean-card p b { color: var(--text); }
+
+  .shap-explain-single {
+    background: var(--panel-soft);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .shap-explain-single h4 { font-size: 14.8px; font-weight: 700; margin-bottom: 10px; color: var(--teal); }
+  .shap-explain-single.cls h4 { color: var(--purple); }
+  .shap-explain-single .expl-intro { font-size: 13.3px; color: var(--text-dim); line-height: 1.6; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed var(--panel-border); }
+  .shap-explain-single ul { list-style: none; }
+  .shap-explain-single li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 14.8px; color: var(--text-dim);
+    margin-bottom: 16px; line-height: 1.6;
+  }
+  .shap-explain-single .expl-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .shap-explain-single .expl-dot.pos { background: var(--teal); }
+  .shap-explain-single .expl-dot.neg { background: var(--pink); }
+  .shap-explain-single li b { color: var(--text); }
+
+
+  .placeholder-text { color: var(--text-dim); font-size: 13.8px; }
+
+  @media (max-width: 900px) {
+    #predictionView { grid-template-columns: 1fr; overflow-y: auto; }
+    .stat-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= TOP BAR ================= -->
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">🌐</div>
+    <div>Global <span>Trade</span> Prediction</div>
+  </div>
+
+  <div style="width: 1px;"></div>
+
+  <div class="api-status">
+    <span class="dot-status" id="apiDot"></span>
+    <div class="api-lines">
+      <div class="api-line1" id="apiLine1">API Connecting</div>
+      <div class="api-line2" id="apiLine2">Checking...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PREDICTION VIEW ================= -->
+<div id="predictionView">
+
+  <!-- LEFT: input panel -->
+  <div class="input-panel">
+    <h2>Input Features</h2>
+    <span class="sub">Provide trade details to get AI-powered prediction</span>
+
+    <div class="field">
+      <label>Country</label>
+      <input id="country_or_area" type="text" value="India" placeholder="e.g. India">
+    </div>
+
+    <div class="field">
+      <label>Commodity</label>
+      <select id="commodity">
+        <option value="Petroleum oils, oils from bituminous minerals, crude">Petroleum oils, crude</option>
+        <option value="Oils petroleum, bituminous, distillates, except crude">Petroleum oils, distillates</option>
+        <option value="Medicaments nes, in dosage">Medicaments, in dosage</option>
+        <option value="Fixed wing aircraft, unladen weight &gt; 15,000 kg">Fixed wing aircraft (&gt;15,000 kg)</option>
+        <option value="Natural gas in gaseous state">Natural gas (gaseous)</option>
+        <option value="Gold in unwrought forms non-monetary">Gold, unwrought (non-monetary)</option>
+        <option value="Aircraft parts nes">Aircraft parts</option>
+        <option value="Iron ore, concentrate, not iron pyrites, unagglomerate" selected>Iron ore, concentrate</option>
+        <option value="Commodities not specified according to kind">Commodities not specified</option>
+        <option value="Natural gas, liquefied">Natural gas, liquefied</option>
+        <option value="Bituminous coal, not agglomerated">Bituminous coal</option>
+        <option value="Automobiles, spark ignition engine of 1500-3000 cc">Automobiles (1500–3000cc)</option>
+        <option value="Copper ores and concentrates">Copper ores &amp; concentrates</option>
+        <option value="Wheat except durum wheat, and meslin">Wheat &amp; meslin</option>
+        <option value="Antisera and other blood fractions">Antisera &amp; blood fractions</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Flow</label>
+      <select id="flow">
+        <option value="Export" selected>Export</option>
+        <option value="Import">Import</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Quantity Name (unit)</label>
+      <select id="quantity_name">
+        <option value="Weight in kilograms" selected>Weight in kilograms</option>
+        <option value="Number of items">Number of items</option>
+        <option value="Volume in litres">Volume in litres</option>
+        <option value="Weight in tonnes">Weight in tonnes</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Year</label>
+      <div class="stepper-row">
+        <button class="step-btn" onclick="stepValue('year', -1, 1988, 2016)">−</button>
+        <input id="year" type="number" value="2016" min="1988" max="2016" onblur="clampYear(this)">
+        <button class="step-btn" onclick="stepValue('year', 1, 1988, 2016)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Weight (kg, yearly total)</label>
+      <div class="stepper-row">
+        <button class="step-btn" onclick="stepValue('weight_kg', -1000000, 0)">−</button>
+        <input id="weight_kg" type="number" value="50000000" min="0" step="any">
+        <button class="step-btn" onclick="stepValue('weight_kg', 1000000, 0)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Quantity (yearly total)</label>
+      <div class="stepper-row">
+        <button class="step-btn" onclick="stepValue('quantity', -1000000, 0)">−</button>
+        <input id="quantity" type="number" value="50000000" min="0" step="any">
+        <button class="step-btn" onclick="stepValue('quantity', 1000000, 0)">+</button>
+      </div>
+    </div>
+
+    <button id="predictBtn" onclick="runPrediction()">✨ Predict Trade Value</button>
+    <div class="error-box" id="errorBox"></div>
+    <div class="footnote">Predictions are estimates based on historical UN Comtrade data (1988–2016)</div>
+  </div>
+
+  <!-- RIGHT: results -->
+  <div class="right-col">
+
+    <div class="stat-row">
+      <div class="stat-card value">
+        <div>
+          <div class="stat-card-title">Predicted Trade Value (USD)</div>
+          <div class="stat-card-value" id="regValue">—</div>
+          <div class="stat-card-sub" id="regSub">This is the estimated trade value based on the provided details.</div>
+        </div>
+        <div class="stat-icon">$</div>
+      </div>
+      <div class="stat-card category">
+        <div>
+          <div class="stat-card-title">Category</div>
+          <div class="stat-card-value" id="clsValue">—</div>
+          <div class="stat-card-sub" id="clsSub">Model confidence: —</div>
+        </div>
+        <div class="stat-icon">🛡️</div>
+      </div>
+    </div>
+
+    <div class="shap-card">
+      <div class="shap-head">
+        <h2>What's Driving This Prediction?</h2>
+        <div class="shap-toggle">
+          <button id="shapTabReg" class="active" onclick="switchShapTab('reg')">Trade Value</button>
+          <button id="shapTabCls" onclick="switchShapTab('cls')">Category</button>
+        </div>
+      </div>
+
+      <div id="shapEmpty" class="placeholder-text">Run a prediction to see which inputs drove the result.</div>
+
+      <div id="shapContent" style="display:none; flex-direction:column; flex:1; min-height:0;">
+        <div class="shap-body">
+
+          <div class="shap-left">
+            <div class="shap-visual">
+              <div class="shap-rows-wrap">
+                <div id="shapReg"></div>
+                <div id="shapCls" style="display:none;"></div>
+              </div>
+              <div class="shap-legend-row">
+                <span class="neg">← Decreases Value</span>
+                <span>Impact on Prediction (SHAP)</span>
+                <span class="pos">Increases Value →</span>
+              </div>
+            </div>
+
+            <div class="side-card">
+              <div class="side-title">Category Probabilities (ML model)</div>
+              <div id="catProbs"></div>
+
+              <div class="side-title" style="margin-top:16px;">Model Performance (test set)</div>
+              <div class="metric-row">
+                <div class="metric"><b>0.86</b><span>R² (log trade value)</span></div>
+                <div class="metric"><b>54%</b><span>Category accuracy</span></div>
+                <div class="metric"><b>0.56</b><span>Macro-F1 (10 classes)</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="shap-right">
+            <div class="shap-mean-card">
+              <h4>What does this prediction mean?</h4>
+              <p id="shapMeanSummary"></p>
+            </div>
+
+            <div class="shap-explain-single reg" id="shapExplainWrapReg">
+              <h4>What affected the Trade Value</h4>
+              <p class="expl-intro">Each factor below either pushed the predicted trade value up or pulled it down, ranked by how strong its effect was:</p>
+              <ul id="shapExplainReg"></ul>
+            </div>
+            <div class="shap-explain-single cls" id="shapExplainWrapCls" style="display:none;">
+              <h4>What affected the Category</h4>
+              <p class="expl-intro">Each factor below either pushed the model toward this category or away from it, ranked by how strong its effect was:</p>
+              <ul id="shapExplainCls"></ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+
+
+<script>
+  const API_BASE = "http://127.0.0.1:8000";
+  let lastPredictData = null;
+  let lastExplainData = null;
+
+  function switchShapTab(which) {
+    document.getElementById('shapTabReg').classList.toggle('active', which === 'reg');
+    document.getElementById('shapTabCls').classList.toggle('active', which === 'cls');
+    document.getElementById('shapReg').style.display = which === 'reg' ? 'block' : 'none';
+    document.getElementById('shapCls').style.display = which === 'cls' ? 'block' : 'none';
+    document.getElementById('shapExplainWrapReg').style.display = which === 'reg' ? 'block' : 'none';
+    document.getElementById('shapExplainWrapCls').style.display = which === 'cls' ? 'block' : 'none';
+  }
+
+  function parseErrorDetail(errBody, statusCode) {
+    if (!errBody || !errBody.detail) return statusCode;
+    if (typeof errBody.detail === 'string') return errBody.detail;
+    if (Array.isArray(errBody.detail)) {
+      return errBody.detail
+        .map(e => (e.loc ? e.loc[e.loc.length - 1] + ': ' : '') + (e.msg || JSON.stringify(e)))
+        .join('; ');
+    }
+    return JSON.stringify(errBody.detail);
+  }
+
+  function clampYear(el) {
+    let v = parseInt(el.value) || 2016;
+    v = Math.max(1988, Math.min(2016, v));
+    el.value = v;
+  }
+
+  function stepValue(id, delta, min, max) {
+    const el = document.getElementById(id);
+    let v = parseFloat(el.value) || 0;
+    v += delta;
+    if (min !== undefined) v = Math.max(min, v);
+    if (max !== undefined) v = Math.min(max, v);
+    el.value = v;
+  }
+
+  async function checkApiStatus() {
+    const dot = document.getElementById('apiDot');
+    const line1 = document.getElementById('apiLine1');
+    const line2 = document.getElementById('apiLine2');
+    try {
+      const res = await fetch(API_BASE + '/health', { method: 'GET' });
+      if (!res.ok) throw new Error('bad status');
+      dot.className = 'dot-status live';
+      line1.textContent = 'API Connected';
+      line2.className = 'api-line2 live';
+      line2.textContent = 'Live';
+    } catch (err) {
+      dot.className = 'dot-status offline';
+      line1.textContent = 'API Disconnected';
+      line2.className = 'api-line2 offline';
+      line2.textContent = 'Offline';
+    }
+  }
+  checkApiStatus();
+  setInterval(checkApiStatus, 15000);
+
+  function getPayload() {
+    return {
+      country_or_area: document.getElementById('country_or_area').value.trim(),
+      commodity: document.getElementById('commodity').value,
+      flow: document.getElementById('flow').value,
+      quantity_name: document.getElementById('quantity_name').value,
+      year: parseInt(document.getElementById('year').value),
+      weight_kg: parseFloat(document.getElementById('weight_kg').value),
+      quantity: parseFloat(document.getElementById('quantity').value)
+    };
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+  function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+
+  // Small values keep 2 decimals so they never show as a misleading "$0"
+  function formatUSD(n) {
+    const v = Number(n);
+    return "$" + v.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: v < 100 ? 2 : 0
+    });
+  }
+
+  // Mirrors the backend's humanize_feature() so labels read the same way
+  function humanizeFeature(raw) {
+    let name = raw.includes('__') ? raw.split('__').slice(1).join('__') : raw;
+    if (name.endsWith('_freq')) name = name.slice(0, -5);
+    const map = {
+      'commodity': 'the commodity type',
+      'country_or_area': 'the reporting country',
+      'year': 'the trade year',
+      'weight_kg': 'the shipment weight',
+      'quantity': 'the quantity shipped',
+      'trade_usd_log': 'the estimated trade value',
+      'unit_price': 'the price per unit',
+      'price_per_kg': 'the price per kilogram',
+      'qty_per_kg': 'the units per kilogram'
+    };
+    if (map[name]) return map[name];
+    if (name.startsWith('flow_')) return 'the trade flow (' + name.replace('flow_', '') + ')';
+    if (name.startsWith('quantity_name_')) return 'the unit type (' + name.replace('quantity_name_', '') + ')';
+    return name.replace(/_/g, ' ');
+  }
+
+  function renderCatProbs(items) {
+    const box = document.getElementById('catProbs');
+    box.innerHTML = '';
+    items.forEach(c => {
+      const pct = c.probability * 100;
+      const row = document.createElement('div');
+      row.className = 'prob-row';
+      row.innerHTML = `<span class="prob-name" title="${c.category}">${c.category}</span>
+        <div class="prob-track"><div class="prob-fill" style="width:${pct}%"></div></div>
+        <span class="prob-val">${pct.toFixed(0)}%</span>`;
+      box.appendChild(row);
+    });
+  }
+
+  function renderShapRows(containerId, features) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    const maxAbs = Math.max(...features.map(f => Math.abs(f.shap_value)), 0.0001);
+
+    features.forEach(f => {
+      const isPos = f.shap_value >= 0;
+      const widthPct = (Math.abs(f.shap_value) / maxAbs) * 50;
+
+      const row = document.createElement('div');
+      row.className = 'shap-row';
+
+      const name = document.createElement('div');
+      name.className = 'feat-name';
+      name.title = humanizeFeature(f.feature);
+      name.textContent = humanizeFeature(f.feature);
+
+      const track = document.createElement('div');
+      track.className = 'shap-bar-track';
+      const centerLine = document.createElement('div');
+      centerLine.className = 'shap-center-line';
+      track.appendChild(centerLine);
+
+      const bar = document.createElement('div');
+      bar.className = 'shap-bar ' + (isPos ? 'pos-bar' : 'neg-bar');
+      bar.style.width = widthPct + '%';
+      bar.style.background = isPos
+        ? 'linear-gradient(90deg, rgba(45,212,191,0.4), var(--teal))'
+        : 'linear-gradient(90deg, var(--pink), rgba(240,87,124,0.4))';
+      if (isPos) { bar.style.left = '50%'; } else { bar.style.right = '50%'; }
+      track.appendChild(bar);
+
+      const val = document.createElement('div');
+      val.className = 'val ' + (isPos ? 'pos' : 'neg');
+      val.textContent = (isPos ? '+' : '') + f.shap_value.toFixed(2);
+
+      row.appendChild(name);
+      row.appendChild(track);
+      row.appendChild(val);
+      container.appendChild(row);
+    });
+  }
+
+  function renderExplanationList(containerId, features) {
+    const ul = document.getElementById(containerId);
+    ul.innerHTML = '';
+
+    const rankPhrase = ['the single biggest factor', 'the second biggest factor', 'the third biggest factor',
+                         'a smaller factor', 'the smallest factor'];
+
+    features.forEach((f, i) => {
+      const isPos = f.shap_value >= 0;
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="expl-dot ${isPos ? 'pos' : 'neg'}"></span>
+        <span><b>${humanizeFeature(f.feature)}</b> was ${rankPhrase[i] || 'a minor factor'} in this prediction,
+        ${isPos ? 'pushing it up' : 'pulling it down'}.</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  async function runPrediction() {
+    hideError();
+    const btn = document.getElementById('predictBtn');
+    btn.disabled = true;
+    btn.textContent = 'Predicting...';
+
+    const payload = getPayload();
+
+    if (!payload.country_or_area || !payload.commodity || !payload.quantity_name ||
+        isNaN(payload.year) || isNaN(payload.weight_kg) || isNaN(payload.quantity)) {
+      showError('Please fill in all fields with valid values.');
+      btn.disabled = false;
+      btn.textContent = '✨ Predict Trade Value';
+      return;
+    }
+
+    try {
+      const [predictRes, explainRes] = await Promise.all([
+        fetch(API_BASE + '/predict', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        }),
+        fetch(API_BASE + '/explain', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        })
+      ]);
+
+      if (!predictRes.ok) {
+        const errBody = await predictRes.json().catch(() => ({}));
+        throw new Error('Predict failed: ' + parseErrorDetail(errBody, predictRes.status));
+      }
+      if (!explainRes.ok) {
+        const errBody = await explainRes.json().catch(() => ({}));
+        throw new Error('Explain failed: ' + parseErrorDetail(errBody, explainRes.status));
+      }
+
+      const predictData = await predictRes.json();
+      const explainData = await explainRes.json();
+      lastPredictData = predictData;
+      lastExplainData = explainData;
+
+      document.getElementById('regValue').textContent = formatUSD(predictData.predicted_trade_usd);
+
+      // Category card: reference category (from the commodity) is the headline when known;
+      // the ML model's own guess and its real confidence are always shown underneath.
+      const refCat = predictData.commodity_category;
+      const conf = (predictData.category_confidence * 100).toFixed(1);
+      document.getElementById('clsValue').textContent = refCat || predictData.predicted_category;
+
+      let sub = refCat
+        ? 'ML model guess : ' + predictData.predicted_category + ' (' + conf + '%)'
+        : 'Model confidence: ' + conf + '%';
+      if (predictData.top_categories && predictData.top_categories.length) {
+        sub += '<br>Top 3: ' + predictData.top_categories
+          .map(c => c.category + ' (' + (c.probability * 100).toFixed(0) + '%)')
+          .join(' · ');
+      }
+      document.getElementById('clsSub').innerHTML = sub;
+      renderCatProbs(predictData.top_categories || []);
+
+      document.getElementById('shapEmpty').style.display = 'none';
+      document.getElementById('shapContent').style.display = 'flex';
+      renderShapRows('shapReg', explainData.regression_top_features);
+      renderShapRows('shapCls', explainData.classification_top_features);
+      document.getElementById('shapMeanSummary').innerHTML = explainData.insight_summary;
+      renderExplanationList('shapExplainReg', explainData.regression_top_features);
+      renderExplanationList('shapExplainCls', explainData.classification_top_features);
+      switchShapTab('reg');
+
+    } catch (err) {
+      showError('Could not reach the backend. Make sure the FastAPI server is running at ' + API_BASE + '. (' + err.message + ')');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✨ Predict Trade Value ✨';
+    }
+  }
+</script>
+
+</body>
+</html>
